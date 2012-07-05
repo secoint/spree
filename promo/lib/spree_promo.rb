@@ -27,11 +27,11 @@ module SpreePromo
         attr_accessible :coupon_code
         attr_accessor :coupon_code
         before_save :process_coupon_code, :if => "@coupon_code.present?"
-        
+
         def finalized?
           self.class.finalized_states.include?(state)
         end
-        
+
         def self.finalized_states
           ["complete", "awaiting_return", "returned"]
         end
@@ -72,7 +72,7 @@ module SpreePromo
           # recalculate amount
           self.promotion_credits.each do |credit|
             if credit.source.eligible?(self)
-              amount = credit.source.compute(self)
+              amount = promotion.compute(self)
               if credit.amount != amount
                 # avoid infinite callbacks
                 PromotionCredit.update_all("amount = #{amount}", { :id => credit.id })
@@ -81,11 +81,11 @@ module SpreePromo
               credit.destroy
             end
           end
-          
+
           current_promotions = self.promotion_credits.map(&:source)
           # return if current promotions can not be combined
           return if current_promotions.any? { |promotion| !promotion.combine? }
-          
+
           new_promotions = eligible_automatic_promotions - current_promotions
           new_promotions.each do |promotion|
             next if current_promotions.present? && !promotion.combine?
@@ -130,3 +130,4 @@ module SpreePromo
     config.to_prepare &method(:activate).to_proc
   end
 end
+
