@@ -48,16 +48,11 @@ module Scopes::Product
     order_text << ((r[1] == 'ascend') ?  "asc" : "desc")
 
     Product.send(:scope, name.to_s, Product.send(:relation).order(order_text) )
-    Product.search_scopes << name.intern
   end
 
-  ::Product.add_search_scope :ascend_by_master_price do
-    joins(:variants_with_only_master).order('variants.price asc')
-  end
+  ::Product.scope :ascend_by_master_price, Product.joins(:variants_with_only_master).order("#{Variant.table_name}.price asc")
 
-  ::Product.add_search_scope :descend_by_master_price do
-    joins(:variants_with_only_master).order('variants.price desc')
-  end
+  ::Product.scope :descend_by_master_price, Product.joins(:variants_with_only_master).order("#{Variant.table_name}.price desc")
 
   ATTRIBUTE_HELPER_METHODS = {
     :with_ids => :product_picker_field
@@ -65,99 +60,105 @@ module Scopes::Product
 
   # Ryan Bates - http://railscasts.com/episodes/112
   # general merging of conditions, names following the searchlogic pattern
-  ::Product.add_search_scope :conditions do |*args|
-    where(args)
-  end
+  ::Product.scope :conditions, lambda { |*args| {:conditions => args}}
 
-  ::Product.add_search_scope :conditions_all do |*args|
-    where([args].flatten)
-  end
+  # conditions_all is a more descriptively named enhancement of the above
+  ::Product.scope :conditions_all, lambda { |*args| {:conditions => [args].flatten}}
 
   # forming the disjunction of a list of conditions (as strings)
-  ::Product.add_search_scope :conditions_any do |*args|
+  ::Product.scope :conditions_any, lambda { |*args|
     args = [args].flatten
     raise "non-strings in conditions_any" unless args.all? {|s| s.is_a? String}
-    where(args.map {|c| "(#{c})"}.join(" OR "))
-  end
+    {:conditions => args.map {|c| "(#{c})"}.join(" OR ")}
+  }
 
 
-  ::Product.add_search_scope :price_between do |low, high|
-    joins(:master).where("variants.price" => (low.to_f)..(high.to_f))
-  end
+  ::Product.scope :price_between, lambda { |low, high|
+    { :joins => :master, :conditions => ["#{Variant.table_name}.price BETWEEN ? AND ?", low, high] }
+  }
 
-  ::Product.add_search_scope :master_price_lte do |price|
-    joins(:master).where("variants.price <= ?", price)
-  end
+  ::Product.scope :master_price_lte, lambda { |price|
+    { :joins => :master, :conditions => ["#{Variant.table_name}.price <= ?", price] }
+  }
 
-  ::Product.add_search_scope :master_price_gte do |price|
-    joins(:master).where("variants.price >= ?", price)
-  end
+  ::Product.scope :master_price_gte, lambda { |price|
+    { :joins => :master, :conditions => ["#{Variant.table_name}.price >= ?", price] }
+  }
+
 
   # This scope selects products in taxon AND all its descendants
   # If you need products only within one taxon use
   #
   #   Product.taxons_id_eq(x)
   #
-  ::Product.add_search_scope :in_taxon do |taxon|
-    joins(:taxons).where("taxons.id" => taxon.self_and_descendants.map(&:id))
-  end
+  ::Product.scope :in_taxon, lambda {|taxon|
+    { :joins => :taxons, :conditions => ["#{Taxon.table_name}.id IN (?) ", taxon.self_and_descendants.map(&:id)]}
+  }
 
   # This scope selects products in all taxons AND all its descendants
   # If you need products only within one taxon use
   #
   #   Product.taxons_id_eq([x,y])
   #
-  ::Product.add_search_scope :in_taxons do |*taxons|
+  Product.scope :in_taxons, lambda {|*taxons|
     taxons = get_taxons(taxons)
-    taxons.first ? prepare_taxon_conditions(taxons) : scoped
-  end
+    taxons.first ? prepare_taxon_conditions(taxons) : {}
+  }
 
   # for quick access to products in a group, WITHOUT using the association mechanism
-  Product.add_search_scope :in_cached_group do |product_group|
-    joins("JOIN product_groups_products ON products.id = product_groups_products.product_id").
-    where(["product_groups_products.product_group_id = ?", product_group])
-  end
+  Product.scope :in_cached_group, lambda {|product_group|
+    { :joins => "JOIN product_groups_products ON products.id = product_groups_products.product_id",
+      :conditions => ["product_groups_products.product_group_id = ?", product_group]
+    }
+  }
 
 
   # a scope that finds all products having property specified by name, object or id
-  Product.add_search_scope :with_property do |property|
+  Product.scope :with_property, lambda {|property|
     conditions = case property
     when String   then ["properties.name = ?", property]
     when Property then ["properties.id = ?", property.id]
     else               ["properties.id = ?", property.to_i]
     end
 
-    joins(:properties).
-    where(conditions)
-  end
+    {
+      :joins => :properties,
+      :conditions => conditions
+    }
+  }
 
   # a scope that finds all products having an option_type specified by name, object or id
-  Product.add_search_scope :with_option do |option|
+  Product.scope :with_option, lambda {|option|
     conditions = case option
     when String     then ["option_types.name = ?", option]
     when OptionType then ["option_types.id = ?",   option.id]
     else                 ["option_types.id = ?",   option.to_i]
     end
 
-    joins(:option_types).
-    where(conditions)
-  end
+    {
+      :joins => :option_types,
+      :conditions => conditions
+    }
+  }
 
   # a simple test for product with a certain property-value pairing
   # note that it can test for properties with NULL values, but not for absent values
-  Product.add_search_scope :with_property_value do |property, value|
+  Product.scope :with_property_value, lambda { |property, value|
     conditions = case property
     when String   then ["properties.name = ?", property]
     when Property then ["properties.id = ?", property.id]
     else               ["properties.id = ?", property.to_i]
     end
     conditions = ["product_properties.value = ? AND #{conditions[0]}", value, conditions[1]]
-    joins(:properties).
-    where(conditions)
-  end
+
+    {
+      :joins => :properties,
+      :conditions => conditions
+    }
+  }
 
   # a scope that finds all products having an option value specified by name, object or id
-  Product.add_search_scope :with_option_value do |option, value|
+  Product.scope :with_option_value, lambda {|option, value|
     option_type_id = case option
     when String
       option_type = OptionType.find_by_name(option) || option.to_i
@@ -171,32 +172,36 @@ module Scopes::Product
       value, option_type_id
     ]
 
-    joins(:variants => :option_values).
-    where(conditions)
-  end
+    {
+      :joins => {:variants => :option_values},
+      :conditions => conditions
+    }
+  }
 
   # finds product having option value OR product_property
-  Product.add_search_scope :with do |value|
-    joins(:product_properties, :variants => :option_values).
-    where("option_values.name = ? OR product_properties.value = ?", value, value)
-  end
+  Product.scope :with, lambda{|value|
+    {
+      :conditions => ["option_values.name = ? OR product_properties.value = ?", value, value],
+      :joins => {:variants => :option_values, :product_properties => []}
+    }
+  }
 
-  Product.add_search_scope :in_name do |words|
+  Product.scope :in_name, lambda{|words|
     Product.like_any([:name], prepare_words(words))
-  end
+  }
 
-  Product.add_search_scope :in_name_or_keywords do |words|
+  Product.scope :in_name_or_keywords, lambda{|words|
     Product.like_any([:name, :meta_keywords], prepare_words(words))
-  end
+  }
 
-  Product.add_search_scope :in_name_or_description do |words|
+  Product.scope :in_name_or_description, lambda{|words|
     Product.like_any([:name, :description, :meta_description, :meta_keywords], prepare_words(words))
-  end
+  }
 
-  Product.add_search_scope :with_ids do |ids|
+  Product.scope :with_ids, lambda{|ids|
     ids = ids.split(',') if ids.is_a?(String)
-    where(:id => ids)
-  end
+    { :conditions => {:id => ids} }
+  }
 
   # Sorts products from most popular (poularity is extracted from how many
   # times use has put product in cart, not completed orders)
@@ -206,7 +211,7 @@ module Scopes::Product
   #
   # :joins => "LEFT OUTER JOIN (SELECT line_items.variant_id as vid, COUNT(*) as cnt FROM line_items GROUP BY line_items.variant_id) AS popularity_count ON variants.id = vid",
   # :order => 'COALESCE(cnt, 0) DESC'
-  Product.add_search_scope :descend_by_popularity do
+  Product.scope :descend_by_popularity,
     {
       :joins => :master,
       :order => <<SQL
@@ -224,11 +229,10 @@ module Scopes::Product
          ), 0) DESC
 SQL
     }
-  end
 
   # Produce an array of keywords for use in scopes.
   # Always return array with at least an empty string to avoid SQL errors
-  def Product.prepare_words(words)
+  def self.prepare_words(words)
     return [''] if words.blank?
     a = words.split(/[,\s]/).map(&:strip)
     a.any? ? a : ['']
@@ -240,7 +244,7 @@ SQL
     end
   end
 
-  def Product.get_taxons(*ids_or_records_or_names)
+  def self.get_taxons(*ids_or_records_or_names)
     ids_or_records_or_names.flatten.map { |t|
       case t
       when Integer then Taxon.find_by_id(t)
@@ -255,8 +259,8 @@ SQL
   end
 
   # specifically avoid having an order for taxon search (conflicts with main order)
-  def Product.prepare_taxon_conditions(taxons)
+  def self.prepare_taxon_conditions(taxons)
     ids = taxons.map{|taxon| taxon.self_and_descendants.map(&:id)}.flatten.uniq
-    joins(:taxons).where("taxons.id" => ids)
+    { :joins => :taxons, :conditions => ["taxons.id IN (?)", ids] }
   end
 end
