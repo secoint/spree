@@ -124,7 +124,7 @@ class Order < ActiveRecord::Base
     after_transition :to => 'delivery', :do => :create_tax_charge!
     after_transition :to => 'payment', :do => :create_shipment!
     after_transition :to => 'canceled', :do => :after_cancel
-
+    after_transition :to => 'resumed',  :do => :after_resume
   end
 
   # Indicates whether there are any backordered InventoryUnits associated with the Order.
@@ -490,8 +490,24 @@ class Order < ActiveRecord::Base
 
   def after_cancel
     # TODO: make_shipments_pending
-    # TODO: restock_inventory
+    restock_items!
     OrderMailer.cancel_email(self).deliver
+  end
+
+  def after_resume
+    unstock_items!
+  end
+
+  def restock_items!
+    line_items.each do |line_item|
+      InventoryUnit.decrease(self, line_item.variant, line_item.quantity)
+    end
+  end
+
+  def unstock_items!
+    line_items.each do |line_item|
+      InventoryUnit.increase(self, line_item.variant, line_item.quantity)
+    end
   end
 
 end
