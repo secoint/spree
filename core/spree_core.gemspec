@@ -29,9 +29,9 @@ Gem::Specification.new do |s|
   s.add_dependency 'faker', '= 1.0.0'
   s.add_dependency 'paperclip', '= 2.5.0'
   s.add_dependency 'rd_resource_controller'
-  s.add_dependency 'meta_search', '= 1.1.1'
+  s.add_dependency 'meta_search', '~> 1.1.2'
   s.add_dependency 'activemerchant', '= 1.17.0'
-  s.add_dependency 'rails', '~> 3.1.10'
+  s.add_dependency 'rails'
   s.add_dependency 'kaminari', '>= 0.12.4'
   s.add_dependency 'deface', '>= 0.7.0'
 end
