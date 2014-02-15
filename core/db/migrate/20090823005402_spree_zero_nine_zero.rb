@@ -337,7 +337,7 @@ class SpreeZeroNineZero < ActiveRecord::Migration
       t.datetime "updated_at"
     end
 
-    create_table "state_events", :force => true do |t|
+    create_table "state_changes", :force => true do |t|
       t.integer  "order_id"
       t.integer  "user_id"
       t.string   "name"

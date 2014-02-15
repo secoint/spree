@@ -221,7 +221,7 @@ describe Order do
     end
 
     it "should log state event" do
-      order.state_events.should_receive(:create)
+      order.state_changes.should_receive(:create)
       order.finalize!
     end
   end

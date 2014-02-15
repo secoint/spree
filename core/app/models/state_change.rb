@@ -1,4 +1,4 @@
-class StateEvent < ActiveRecord::Base
+class StateChange < ActiveRecord::Base
   belongs_to :user
   belongs_to :stateful, :polymorphic => true
   before_create :assign_user
