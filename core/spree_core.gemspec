@@ -25,7 +25,7 @@ Gem::Specification.new do |s|
   s.add_dependency 'jquery-rails', '>= 1.0.14'
   s.add_dependency 'highline', '= 1.6.2'
   s.add_dependency 'stringex', '= 1.3.0'
-  s.add_dependency 'state_machine', '~> 1.1.2'
+  s.add_dependency 'state_machine', '~> 1.0.2'
   s.add_dependency 'faker', '= 1.0.0'
   s.add_dependency 'paperclip', '= 2.5.0'
   s.add_dependency 'makandra_resource_controller', '~> 0.8.0'
