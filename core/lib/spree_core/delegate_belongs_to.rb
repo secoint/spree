@@ -78,12 +78,10 @@ module DelegateBelongsTo
 
   end
 
-  module InstanceMethods
     protected
     def delegator_for(association)
       send("#{association}=", self.class.reflect_on_association(association).klass.new) if send(association).nil?
       send(association)
     end
-  end
 
 end

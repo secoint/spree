@@ -1,12 +1,12 @@
 class Admin::ProductsController < Admin::ResourceController
-  before_filter :check_json_authenticity, :only => :index
-  before_filter :load_data, :except => :index
+  before_filter :check_json_authenticity, only: :index
+  before_filter :load_data, except: :index
   update.before :update_before
 
   def index
     respond_with(@collection) do |format|
       format.html
-      format.json { render :json => json_data }
+      format.json { render json: json_data }
     end
   end
 
@@ -62,9 +62,9 @@ class Admin::ProductsController < Admin::ResourceController
     when 'basic'
       collection.map {|p| {'id' => p.id, 'name' => p.name}}.to_json
     else
-      collection.to_json(:include => {:variants => {:include => {:option_values => {:include => :option_type}, 
-                                                    :images => {:only => [:id], :methods => :mini_url}}}, 
-                                                    :images => {:only => [:id], :methods => :mini_url}, :master => {}})
+      collection.to_json(include: {variants: {include: {option_values: {include: :option_type},
+                                                    images: {only: [:id], methods: :mini_url}}},
+                                                    images: {only: [:id], methods: :mini_url}, master: {}})
     end
   end
 
@@ -86,16 +86,20 @@ class Admin::ProductsController < Admin::ResourceController
       params[:search][:meta_sort] ||= "name.asc"
       @search = super.metasearch(params[:search])
 
-      @collection = @search.relation.group_by_products_id.includes({:variants => [:images, :option_values]}).page(params[:page]).per(Spree::Config[:admin_products_per_page])
+      @collection = @search.relation.group_by_products_id.
+                              includes({variants: [:images, :option_values]}).
+                              page(params[:page]).
+                              per(Spree::Config[:admin_products_per_page])
     else
-      includes = [{:variants => [:images,  {:option_values => :option_type}]}, :master, :images]
+      includes = [{variants: [:images,  {option_values: :option_type}]}, :master, :images]
 
       @collection = super.where(["name #{LIKE} ?", "%#{params[:q]}%"])
       @collection = @collection.includes(includes).limit(params[:limit] || 10)
 
-      tmp = super.where(["variants.sku #{LIKE} ?", "%#{params[:q]}%"])
-      tmp = tmp.includes(:variants_including_master).limit(params[:limit] || 10)
-      @collection.concat(tmp)
+      tmp = super.includes(:variants_including_master).
+                            where(["variants.sku #{LIKE} ?", "%#{params[:q]}%"])
+      tmp = tmp.limit(params[:limit] || 10)
+      @collection = @collection.concat(tmp)
 
       @collection.uniq
     end
