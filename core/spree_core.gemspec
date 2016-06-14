@@ -27,7 +27,7 @@ Gem::Specification.new do |s|
   s.add_dependency 'stringex', '= 1.3.0'
   s.add_dependency 'state_machine', '~> 1.1.2'
   s.add_dependency 'faker', '= 1.0.0'
-  s.add_dependency 'paperclip', '~> 3.3.1'
+  s.add_dependency 'paperclip', '~> 4.3.6'
   s.add_dependency 'rd_resource_controller'
   s.add_dependency 'meta_search', '~> 1.1.2'
   s.add_dependency 'activemerchant', '= 1.17.0'
